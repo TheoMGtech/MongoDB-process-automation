@@ -3,10 +3,64 @@ from tkinter import filedialog, messagebox, ttk
 import subprocess
 import os
 import time
+import json
+
+
+def load_config():
+    # Carrega as configurações do arquivo JSON.
+    try:
+        with open("config.json", "r") as file:
+            return json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"mongosh_path": None }
+    #{"mongosh_path": "C:\\Users\\theomartins-ieg\\OneDrive - Instituto Germinare\\MongoShell_Arquivos\\bin\\mongosh.exe"}
+    
+def save_config(config):
+    # Salva as configurações no arquivo JSON.
+    with open("config.json", "w") as file:
+        json.dump(config, file, indent=4)
+
+def open_configurations():
+    # Abre a janela de configurações para alterar o diretório do mongosh.
+    config = load_config()
+    caminho_anterior = config["mongosh_path"]
+    
+    def select_directory():
+        diretorio = filedialog.askopenfilename(title="Selecione o mongosh.exe", filetypes=[("Executável", "*.exe")])
+        if diretorio:
+            entrada_diretorio.config(state="normal")
+            entrada_diretorio.delete(0, tk.END)
+            entrada_diretorio.insert(0, diretorio)
+            entrada_diretorio.config(state="readonly")
+            config["mongosh_path"] = diretorio
+            save_config(config)
+            messagebox.showinfo("Sucesso", "Configuração salva automaticamente!")
+        else:
+            entrada_diretorio.config(state="normal")
+            entrada_diretorio.delete(0, tk.END)
+            entrada_diretorio.insert(0, caminho_anterior)
+            entrada_diretorio.config(state="readonly")
+    
+    janela_config = tk.Toplevel()
+    janela_config.title("Configurações")
+    janela_config.geometry("500x150")
+    janela_config.resizable(False, False)
+    
+    tk.Label(janela_config, text="Caminho do mongosh.exe:").pack(pady=5, padx=10, anchor="w")
+    frame_path = tk.Frame(janela_config)
+    frame_path.pack(pady=5, padx=10, fill="x")
+    
+    entrada_diretorio = tk.Entry(frame_path, width=50, state="readonly")
+    entrada_diretorio.pack(side="left", expand=True, fill="x")
+    entrada_diretorio.insert(0, config["mongosh_path"])
+    
+    tk.Button(frame_path, text="...", command=select_directory, width=3).pack(side="right")
 
 def open_mongo():
     # Fecha a janela popup
     janela.destroy()
+
+    config = load_config()
 
     # Abre o mongod.exe em uma nova janela do cmd
     subprocess.Popen(
@@ -20,7 +74,8 @@ def open_mongo():
 
     # Abre o mongosh.exe em uma nova janela do cmd
     subprocess.Popen(
-        ["start", "", "C:\\Users\\theomartins-ieg\\OneDrive - Instituto Germinare\\MongoShell_Arquivos\\bin\\mongosh.exe"],
+        ["start", "", config["mongosh_path"]
+        ],
         shell=True,
         creationflags=subprocess.CREATE_NEW_CONSOLE
     )
@@ -39,7 +94,9 @@ def import_file():
 
     def execute_importation(db, collection, type, file):
         # Definindo o caminho onde o command deve ser executado
-        execution_path = r"C:\Users\theomartins-ieg\OneDrive - Instituto Germinare\MongoShell_Arquivos\bin"
+        execution_path = load_config()
+        execution_path = str(execution_path["mongosh_path"])
+        execution_path = execution_path[0:execution_path.index("\mongosh.exe")]
 
         if type == "CSV":
             command = rf'.\mongoimport.exe --db={db} --collection={collection} --type=csv --headerline --file="{file}"'
@@ -179,6 +236,10 @@ def main():
     # Botões para abrir o MongoDB ou importar arquivo
     tk.Button(janela, text="Abrir Mongo", command=open_mongo, width=20).pack(pady=10)
     tk.Button(janela, text="Importar Arquivo", command=import_file, width=20).pack(pady=10)
+
+    # Botão de engrenagem para configurações
+    btn_config = tk.Button(janela, text="⚙", command=open_configurations)
+    btn_config.place(x=10, y=10)
 
     janela.mainloop()
 
